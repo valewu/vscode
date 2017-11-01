@@ -120,8 +120,7 @@ function findSystemGitWin32(base: string): Promise<IGit> {
 function findGitWin32(): Promise<IGit> {
 	return findSystemGitWin32(process.env['ProgramW6432'])
 		.then(void 0, () => findSystemGitWin32(process.env['ProgramFiles(x86)']))
-		.then(void 0, () => findSystemGitWin32(process.env['ProgramFiles']))
-		.then(void 0, () => findSpecificGit('git'));
+		.then(void 0, () => findSystemGitWin32(process.env['ProgramFiles']));
 }
 
 export function findGit(hint: string | undefined): Promise<IGit> {
