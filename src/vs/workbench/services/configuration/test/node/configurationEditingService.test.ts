@@ -105,8 +105,7 @@ suite('ConfigurationEditingService', () => {
 		instantiationService = <TestInstantiationService>workbenchInstantiationService();
 		const environmentService = new SettingsTestEnvironmentService(parseArgs(process.argv), process.execPath, globalSettingsFile);
 		instantiationService.stub(IEnvironmentService, environmentService);
-		const workspacesService = instantiationService.stub(IWorkspacesService, {});
-		const workspaceService = new WorkspaceService(environmentService, workspacesService);
+		const workspaceService = new WorkspaceService(environmentService);
 		instantiationService.stub(IWorkspaceContextService, workspaceService);
 		return workspaceService.initialize(noWorkspace ? <IWindowConfiguration>{} : workspaceDir).then(() => {
 			instantiationService.stub(IConfigurationService, workspaceService);
