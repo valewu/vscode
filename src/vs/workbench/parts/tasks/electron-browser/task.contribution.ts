@@ -47,8 +47,6 @@ import { IProgressService2, IProgressOptions, ProgressLocation } from 'vs/platfo
 import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { IWindowService } from 'vs/platform/windows/common/windows';
 
-
-import { IModeService } from 'vs/editor/common/services/modeService';
 import { IModelService } from 'vs/editor/common/services/modelService';
 
 import jsonContributionRegistry = require('vs/platform/jsonschemas/common/jsonContributionRegistry');
@@ -81,8 +79,6 @@ import { ProcessTaskSystem } from 'vs/workbench/parts/tasks/node/processTaskSyst
 import { TerminalTaskSystem } from './terminalTaskSystem';
 import { ProcessRunnerDetector } from 'vs/workbench/parts/tasks/node/processRunnerDetector';
 import { QuickOpenActionContributor } from '../browser/quickOpen';
-
-import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 
 import { Themable, STATUS_BAR_FOREGROUND, STATUS_BAR_NO_FOLDER_FOREGROUND } from 'vs/workbench/common/theme';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
@@ -122,8 +118,6 @@ class BuildStatusBarItem extends Themable implements IStatusbarItem {
 	constructor(
 		@IPanelService private panelService: IPanelService,
 		@IMarkerService private markerService: IMarkerService,
-		// @ts-ignore unused injected service
-		@IOutputService private outputService: IOutputService,
 		@ITaskService private taskService: ITaskService,
 		@IPartService private partService: IPartService,
 		@IThemeService themeService: IThemeService,
@@ -297,18 +291,8 @@ class BuildStatusBarItem extends Themable implements IStatusbarItem {
 class TaskStatusBarItem extends Themable implements IStatusbarItem {
 
 	constructor(
-		// @ts-ignore unused injected service
-		@IPanelService private panelService: IPanelService,
-		// @ts-ignore unused injected service
-		@IMarkerService private markerService: IMarkerService,
-		// @ts-ignore unused injected service
-		@IOutputService private outputService: IOutputService,
 		@ITaskService private taskService: ITaskService,
-		// @ts-ignore unused injected service
-		@IPartService private partService: IPartService,
 		@IThemeService themeService: IThemeService,
-		// @ts-ignore unused injected service
-		@IWorkspaceContextService private contextService: IWorkspaceContextService,
 	) {
 		super(themeService);
 	}
@@ -481,8 +465,6 @@ class TaskService extends EventEmitter implements ITaskService {
 	public static OutputChannelId: string = 'tasks';
 	public static OutputChannelLabel: string = nls.localize('tasks', "Tasks");
 
-	// @ts-ignore unused injected service
-	private modeService: IModeService;
 	private configurationService: IConfigurationService;
 	private markerService: IMarkerService;
 	private outputService: IOutputService;
@@ -513,7 +495,8 @@ class TaskService extends EventEmitter implements ITaskService {
 
 	private _outputChannel: IOutputChannel;
 
-	constructor( @IModeService modeService: IModeService, @IConfigurationService configurationService: IConfigurationService,
+	constructor(
+		@IConfigurationService configurationService: IConfigurationService,
 		@IMarkerService markerService: IMarkerService, @IOutputService outputService: IOutputService,
 		@IMessageService messageService: IMessageService, @IChoiceService choiceService: IChoiceService,
 		@IWorkbenchEditorService editorService: IWorkbenchEditorService,
@@ -522,11 +505,8 @@ class TaskService extends EventEmitter implements ITaskService {
 		@ILifecycleService lifecycleService: ILifecycleService,
 		@IModelService modelService: IModelService, @IExtensionService extensionService: IExtensionService,
 		@IQuickOpenService quickOpenService: IQuickOpenService,
-		// @ts-ignore unused injected service
-		@IEnvironmentService private environmentService: IEnvironmentService,
 		@IConfigurationResolverService private configurationResolverService: IConfigurationResolverService,
 		@ITerminalService private terminalService: ITerminalService,
-		@IWorkbenchEditorService private workbenchEditorService: IWorkbenchEditorService,
 		@IStorageService private storageService: IStorageService,
 		@IProgressService2 private progressService: IProgressService2,
 		@IOpenerService private openerService: IOpenerService,
@@ -534,7 +514,6 @@ class TaskService extends EventEmitter implements ITaskService {
 	) {
 
 		super();
-		this.modeService = modeService;
 		this.configurationService = configurationService;
 		this.markerService = markerService;
 		this.outputService = outputService;
@@ -933,8 +912,14 @@ class TaskService extends EventEmitter implements ITaskService {
 					} else if (selected.matcher) {
 						let newTask = Task.clone(task);
 						let matcherReference = `$${selected.matcher.name}`;
+						let properties: CustomizationProperties = { problemMatcher: [matcherReference] };
 						newTask.problemMatchers = [matcherReference];
-						this.customize(task, { problemMatcher: [matcherReference] }, true);
+						let matcher = ProblemMatcherRegistry.get(selected.matcher.name);
+						if (matcher && matcher.watching !== void 0) {
+							properties.isBackground = true;
+							newTask.isBackground = true;
+						}
+						this.customize(task, properties, true);
 						return newTask;
 					} else {
 						return task;
@@ -981,12 +966,12 @@ class TaskService extends EventEmitter implements ITaskService {
 	public customize(task: ContributedTask | CustomTask, properties?: CustomizationProperties, openConfig?: boolean): TPromise<void> {
 		let workspaceFolder = Task.getWorkspaceFolder(task);
 		if (!workspaceFolder) {
-			return TPromise.as<void>(undefined);
+			return TPromise.wrap<void>(undefined);
 		}
 		let configuration = this.getConfiguration(workspaceFolder);
 		if (configuration.hasParseErrors) {
 			this.messageService.show(Severity.Warning, nls.localize('customizeParseErrors', 'The current task configuration has errors. Please fix the errors first before customizing a task.'));
-			return TPromise.as<void>(undefined);
+			return TPromise.wrap<void>(undefined);
 		}
 
 		let fileConfig = configuration.config;
@@ -1272,13 +1257,12 @@ class TaskService extends EventEmitter implements ITaskService {
 			this._taskSystem = new TerminalTaskSystem(
 				this.terminalService, this.outputService, this.markerService,
 				this.modelService, this.configurationResolverService, this.telemetryService,
-				this.workbenchEditorService, this.contextService,
-				TaskService.OutputChannelId
+				this.contextService, TaskService.OutputChannelId
 			);
 		} else {
 			let system = new ProcessTaskSystem(
 				this.markerService, this.modelService, this.telemetryService, this.outputService,
-				this.configurationResolverService, this.contextService, TaskService.OutputChannelId,
+				this.configurationResolverService, TaskService.OutputChannelId,
 			);
 			system.hasErrors(this._configHasErrors);
 			this._taskSystem = system;
@@ -1756,7 +1740,7 @@ class TaskService extends EventEmitter implements ITaskService {
 					: new Action(
 						'workbench.action.tasks.terminate',
 						nls.localize('TerminateAction.label', "Terminate Task"),
-						undefined, true, () => { this.runTerminateCommand(); return TPromise.as<void>(undefined); });
+						undefined, true, () => { this.runTerminateCommand(); return TPromise.wrap<void>(undefined); });
 				closeAction.closeFunction = this.messageService.show(buildError.severity, { message: buildError.message, actions: [action, closeAction] });
 			} else {
 				this.messageService.show(buildError.severity, buildError.message);
@@ -1992,8 +1976,7 @@ class TaskService extends EventEmitter implements ITaskService {
 		};
 		let promise = this.getTasksForGroup(TaskGroup.Build).then((tasks) => {
 			if (tasks.length > 0) {
-				// @ts-ignore unused local
-				let { none, defaults, users } = this.splitPerGroupType(tasks);
+				let { defaults, users } = this.splitPerGroupType(tasks);
 				if (defaults.length === 1) {
 					this.run(defaults[0]);
 					return;
@@ -2005,7 +1988,7 @@ class TaskService extends EventEmitter implements ITaskService {
 				this.showQuickPick(tasks,
 					nls.localize('TaskService.pickBuildTask', 'Select the build task to run'),
 					{
-						label: nls.localize('TaskService.noBuildTask', 'No build task to run found. Configure Tasks...'),
+						label: nls.localize('TaskService.noBuildTask', 'No build task to run found. Configure Build Task...'),
 						task: null
 					},
 					true).then((task) => {
@@ -2013,7 +1996,7 @@ class TaskService extends EventEmitter implements ITaskService {
 							return;
 						}
 						if (task === null) {
-							this.runConfigureTasks();
+							this.runConfigureDefaultBuildTask();
 							return;
 						}
 						this.run(task, { attachProblemMatcher: true });
@@ -2037,8 +2020,7 @@ class TaskService extends EventEmitter implements ITaskService {
 		};
 		let promise = this.getTasksForGroup(TaskGroup.Test).then((tasks) => {
 			if (tasks.length > 0) {
-				// @ts-ignore unused local
-				let { none, defaults, users } = this.splitPerGroupType(tasks);
+				let { defaults, users } = this.splitPerGroupType(tasks);
 				if (defaults.length === 1) {
 					this.run(defaults[0]);
 					return;
