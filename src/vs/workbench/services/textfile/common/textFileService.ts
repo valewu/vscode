@@ -96,7 +96,7 @@ export abstract class TextFileService implements ITextFileService {
 
 	abstract promptForPath(defaultPath: string): string;
 
-	abstract confirmSave(resources?: URI[]): ConfirmResult;
+	abstract confirmSave(resources?: URI[]): TPromise<ConfirmResult>;
 
 	public get onAutoSaveConfigurationChange(): Event<IAutoSaveConfiguration> {
 		return this._onAutoSaveConfigurationChange.event;
@@ -253,35 +253,36 @@ export abstract class TextFileService implements ITextFileService {
 	}
 
 	private confirmBeforeShutdown(): boolean | TPromise<boolean> {
-		const confirm = this.confirmSave();
+		return this.confirmSave().then(confirm => {
 
-		// Save
-		if (confirm === ConfirmResult.SAVE) {
-			return this.saveAll(true /* includeUntitled */, { skipSaveParticipants: true }).then(result => {
-				if (result.results.some(r => !r.success)) {
-					return true; // veto if some saves failed
-				}
+			// Save
+			if (confirm === ConfirmResult.SAVE) {
+				return this.saveAll(true /* includeUntitled */, { skipSaveParticipants: true }).then(result => {
+					if (result.results.some(r => !r.success)) {
+						return true; // veto if some saves failed
+					}
+
+					return this.noVeto({ cleanUpBackups: true });
+				});
+			}
+
+			// Don't Save
+			else if (confirm === ConfirmResult.DONT_SAVE) {
+
+				// Make sure to revert untitled so that they do not restore
+				// see https://github.com/Microsoft/vscode/issues/29572
+				this.untitledEditorService.revertAll();
 
 				return this.noVeto({ cleanUpBackups: true });
-			});
-		}
+			}
 
-		// Don't Save
-		else if (confirm === ConfirmResult.DONT_SAVE) {
+			// Cancel
+			else if (confirm === ConfirmResult.CANCEL) {
+				return true; // veto
+			}
 
-			// Make sure to revert untitled so that they do not restore
-			// see https://github.com/Microsoft/vscode/issues/29572
-			this.untitledEditorService.revertAll();
-
-			return this.noVeto({ cleanUpBackups: true });
-		}
-
-		// Cancel
-		else if (confirm === ConfirmResult.CANCEL) {
-			return true; // veto
-		}
-
-		return void 0;
+			return void 0;
+		});
 	}
 
 	private noVeto(options: { cleanUpBackups: boolean }): boolean | TPromise<boolean> {

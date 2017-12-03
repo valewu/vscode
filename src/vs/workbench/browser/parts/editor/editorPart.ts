@@ -814,17 +814,20 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 
 		const { editor } = identifier;
 
-		const res = editor.confirmSave();
-		switch (res) {
-			case ConfirmResult.SAVE:
-				return editor.save().then(ok => !ok);
+		return this.openEditor(identifier.editor, null, this.stacks.positionOfGroup(identifier.group)).then(() => {
+			return editor.confirmSave().then(res => {
+				switch (res) {
+					case ConfirmResult.SAVE:
+						return editor.save().then(ok => !ok);
 
-			case ConfirmResult.DONT_SAVE:
-				return editor.revert().then(ok => !ok);
+					case ConfirmResult.DONT_SAVE:
+						return editor.revert().then(ok => !ok);
 
-			case ConfirmResult.CANCEL:
-				return TPromise.as(true); // veto
-		}
+					case ConfirmResult.CANCEL:
+						return TPromise.as(true); // veto
+				}
+			});
+		});
 	}
 
 	private countEditors(editor: EditorInput): number {

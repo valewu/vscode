@@ -218,8 +218,8 @@ export class TestTextFileService extends TextFileService {
 		return this.promptPath;
 	}
 
-	public confirmSave(resources?: URI[]): ConfirmResult {
-		return this.confirmResult;
+	public confirmSave(resources?: URI[]): TPromise<ConfirmResult> {
+		return TPromise.wrap(this.confirmResult);
 	}
 
 	public onFilesConfigurationChange(configuration: any): void {
