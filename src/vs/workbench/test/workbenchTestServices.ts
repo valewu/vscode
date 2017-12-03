@@ -328,10 +328,6 @@ export class TestMessageService implements IMessageService {
 		// No-op
 	}
 
-	public confirmSync(confirmation: IConfirmation): boolean {
-		return false;
-	}
-
 	public confirm(confirmation: IConfirmation): Promise<IConfirmationResult> {
 		return TPromise.as({ confirmed: false });
 	}
@@ -959,10 +955,6 @@ export class TestWindowService implements IWindowService {
 
 	show(): TPromise<void> {
 		return TPromise.as(void 0);
-	}
-
-	showMessageBoxSync(options: Electron.MessageBoxOptions): number {
-		return 0;
 	}
 
 	showMessageBox(options: Electron.MessageBoxOptions): Promise<IMessageBoxResult> {

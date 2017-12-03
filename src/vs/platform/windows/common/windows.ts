@@ -191,7 +191,6 @@ export interface IWindowService {
 	setDocumentEdited(flag: boolean): TPromise<void>;
 	onWindowTitleDoubleClick(): TPromise<void>;
 	show(): TPromise<void>;
-	showMessageBoxSync(options: MessageBoxOptions): number;
 	showMessageBox(options: MessageBoxOptions): TPromise<IMessageBoxResult>;
 	showSaveDialog(options: SaveDialogOptions, callback?: (fileName: string) => void): string;
 	showOpenDialog(options: OpenDialogOptions, callback?: (fileNames: string[]) => void): string[];

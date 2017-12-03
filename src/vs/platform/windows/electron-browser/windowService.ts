@@ -123,10 +123,6 @@ export class WindowService implements IWindowService {
 		return this.windowsService.showWindow(this.windowId);
 	}
 
-	showMessageBoxSync(options: Electron.MessageBoxOptions): number {
-		return remote.dialog.showMessageBox(remote.getCurrentWindow(), options);
-	}
-
 	showMessageBox(options: Electron.MessageBoxOptions): TPromise<IMessageBoxResult> {
 		return new TPromise((c, e) => {
 			return remote.dialog.showMessageBox(remote.getCurrentWindow(), options, (response: number, checkboxChecked: boolean) => {

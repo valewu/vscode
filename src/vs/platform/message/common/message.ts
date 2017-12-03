@@ -60,11 +60,6 @@ export interface IMessageService {
 	hideAll(): void;
 
 	/**
-	 * Ask the user for confirmation.
-	 */
-	confirmSync(confirmation: IConfirmation): boolean;
-
-	/**
 	 * Ask the user for confirmation without blocking.
 	 */
 	confirm(confirmation: IConfirmation): TPromise<IConfirmationResult>;

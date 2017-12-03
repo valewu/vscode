@@ -37,14 +37,6 @@ export class MessageService extends WorkbenchMessageService implements IChoiceSe
 		});
 	}
 
-	public confirmSync(confirmation: IConfirmation): boolean {
-		const opts = this.getConfirmOptions(confirmation);
-
-		const result = this.showMessageBoxSync(opts);
-
-		return result === 0 ? true : false;
-	}
-
 	private getConfirmOptions(confirmation: IConfirmation): Electron.MessageBoxOptions {
 		const buttons: string[] = [];
 		if (confirmation.primaryButton) {
@@ -86,7 +78,7 @@ export class MessageService extends WorkbenchMessageService implements IChoiceSe
 	public choose(severity: Severity, message: string, options: string[], cancelId: number, modal: boolean = false): TPromise<number> {
 		if (modal) {
 			const type: 'none' | 'info' | 'error' | 'question' | 'warning' = severity === Severity.Info ? 'question' : severity === Severity.Error ? 'error' : severity === Severity.Warning ? 'warning' : 'none';
-			return TPromise.wrap(this.showMessageBoxSync({ message, buttons: options, type, cancelId }));
+			return this.showMessageBox({ message, buttons: options, type, cancelId }).then(res => res.button);
 		}
 
 		let onCancel: () => void = null;
@@ -114,13 +106,6 @@ export class MessageService extends WorkbenchMessageService implements IChoiceSe
 				checkboxChecked: result.checkboxChecked
 			} as IMessageBoxResult;
 		});
-	}
-
-	private showMessageBoxSync(opts: Electron.MessageBoxOptions): number {
-		opts = this.massageMessageBoxOptions(opts);
-
-		const result = this.windowService.showMessageBoxSync(opts);
-		return isLinux ? opts.buttons.length - result - 1 : result;
 	}
 
 	private massageMessageBoxOptions(opts: Electron.MessageBoxOptions): Electron.MessageBoxOptions {

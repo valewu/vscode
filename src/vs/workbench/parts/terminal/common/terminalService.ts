@@ -70,31 +70,36 @@ export abstract class TerminalService implements ITerminalService {
 		this.onInstanceDisposed((terminalInstance) => { this._removeInstance(terminalInstance); });
 	}
 
-	protected abstract _showTerminalCloseConfirmation(): boolean;
+	protected abstract _showTerminalCloseConfirmation(): TPromise<boolean>;
 	public abstract createInstance(shell?: IShellLaunchConfig, wasNewTerminalAction?: boolean): ITerminalInstance;
 	public abstract getActiveOrCreateInstance(wasNewTerminalAction?: boolean): ITerminalInstance;
 	public abstract selectDefaultWindowsShell(): TPromise<string>;
 	public abstract setContainers(panelContainer: HTMLElement, terminalContainer: HTMLElement): void;
 
-	private _onWillShutdown(): boolean {
+	private _onWillShutdown(): TPromise<boolean> {
 		if (this.terminalInstances.length === 0) {
 			// No terminal instances, don't veto
-			return false;
+			return TPromise.wrap(false);
 		}
 
+		let vetoShutdown = TPromise.as(false);
 		if (this.configHelper.config.confirmOnExit) {
 			// veto if configured to show confirmation and the user choosed not to exit
-			if (this._showTerminalCloseConfirmation()) {
-				return true;
-			}
+			vetoShutdown = this._showTerminalCloseConfirmation();
 		}
 
-		// Dispose all terminal instances and don't veto
-		this._isShuttingDown = true;
-		this.terminalInstances.forEach(instance => {
-			instance.dispose();
+		return vetoShutdown.then(veto => {
+			if (veto) {
+				return true;
+			}
+
+			// Dispose all terminal instances and don't veto
+			this._isShuttingDown = true;
+			this.terminalInstances.forEach(instance => {
+				instance.dispose();
+			});
+			return TPromise.wrap(false);
 		});
-		return false;
 	}
 
 	public getInstanceLabels(): string[] {

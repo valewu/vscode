@@ -913,18 +913,22 @@ export class FileDragAndDrop extends SimpleFileResourceDragAndDrop {
 			if (folders.length > 0) {
 
 				// If we are in no-workspace context, ask for confirmation to create a workspace
-				let confirmed = true;
+				let confirmedPromise = TPromise.as(true);
 				if (this.contextService.getWorkbenchState() !== WorkbenchState.WORKSPACE) {
-					confirmed = this.messageService.confirmSync({
+					confirmedPromise = this.messageService.confirm({
 						message: folders.length > 1 ? nls.localize('dropFolders', "Do you want to add the folders to the workspace?") : nls.localize('dropFolder', "Do you want to add the folder to the workspace?"),
 						type: 'question',
 						primaryButton: folders.length > 1 ? nls.localize('addFolders', "&&Add Folders") : nls.localize('addFolder', "&&Add Folder")
-					});
+					}).then(res => res.confirmed);
 				}
 
-				if (confirmed) {
-					return this.workspaceEditingService.addFolders(folders);
-				}
+				return confirmedPromise.then(confirmed => {
+					if (confirmed) {
+						return this.workspaceEditingService.addFolders(folders);
+					}
+
+					return void 0;
+				});
 			}
 
 			// Handle dropped files (only support FileStat as target)
@@ -1039,18 +1043,20 @@ export class FileDragAndDrop extends SimpleFileResourceDragAndDrop {
 							};
 
 							// Move with overwrite if the user confirms
-							if (this.messageService.confirmSync(confirm)) {
-								const targetDirty = this.textFileService.getDirty().filter(d => resources.isEqualOrParent(d, targetResource, !isLinux /* ignorecase */));
+							return this.messageService.confirm(confirm).then(res => {
+								if (res.confirmed) {
+									const targetDirty = this.textFileService.getDirty().filter(d => resources.isEqualOrParent(d, targetResource, !isLinux /* ignorecase */));
 
-								// Make sure to revert all dirty in target first to be able to overwrite properly
-								return this.textFileService.revertAll(targetDirty, { soft: true /* do not attempt to load content from disk */ }).then(() => {
+									// Make sure to revert all dirty in target first to be able to overwrite properly
+									return this.textFileService.revertAll(targetDirty, { soft: true /* do not attempt to load content from disk */ }).then(() => {
 
-									// Then continue to do the move operation
-									return this.fileService.moveFile(source.resource, targetResource, true).then(onSuccess, error => onError(error, true));
-								});
-							}
+										// Then continue to do the move operation
+										return this.fileService.moveFile(source.resource, targetResource, true).then(onSuccess, error => onError(error, true));
+									});
+								}
 
-							return onError();
+								return onError();
+							});
 						}
 
 						return onError(error, true);
