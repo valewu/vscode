@@ -827,9 +827,9 @@ export class WindowsManager implements IWindowsMainService {
 
 				const activeWindow = BrowserWindow.getFocusedWindow();
 				if (activeWindow) {
-					dialog.showMessageBox(activeWindow, options);
+					dialog.showMessageBox(activeWindow, options, () => null);
 				} else {
-					dialog.showMessageBox(options);
+					dialog.showMessageBox(options, () => null);
 				}
 			}
 
@@ -1369,7 +1369,7 @@ export class WindowsManager implements IWindowsMainService {
 		}
 
 		// Handle untitled workspaces with prompt as needed
-		this.workspacesManager.promptToSaveUntitledWorkspace(e, workspace);
+		e.veto(this.workspacesManager.promptToSaveUntitledWorkspace(e.window.win, workspace));
 	}
 
 	public focusLastActive(cli: ParsedArgs, context: OpenContext): CodeWindow {
@@ -1722,9 +1722,9 @@ class WorkspacesManager {
 
 			const activeWindow = BrowserWindow.getFocusedWindow();
 			if (activeWindow) {
-				dialog.showMessageBox(activeWindow, options);
+				dialog.showMessageBox(activeWindow, options, () => null);
 			} else {
-				dialog.showMessageBox(options);
+				dialog.showMessageBox(options, () => null);
 			}
 
 			return false;
@@ -1777,7 +1777,7 @@ class WorkspacesManager {
 		});
 	}
 
-	public promptToSaveUntitledWorkspace(e: IWindowUnloadEvent, workspace: IWorkspaceIdentifier): void {
+	public promptToSaveUntitledWorkspace(window: BrowserWindow, workspace: IWorkspaceIdentifier): TPromise<boolean> {
 		enum ConfirmResult {
 			SAVE,
 			DONT_SAVE,
@@ -1811,41 +1811,43 @@ class WorkspacesManager {
 			options.defaultId = 2;
 		}
 
-		const res = dialog.showMessageBox(e.window.win, options);
+		return new TPromise<boolean>(c => {
+			dialog.showMessageBox(window, options, res => {
+				switch (buttons[res].result) {
 
-		switch (buttons[res].result) {
+					// Cancel: veto unload
+					case ConfirmResult.CANCEL:
+						c(true);
+						break;
 
-			// Cancel: veto unload
-			case ConfirmResult.CANCEL:
-				e.veto(true);
-				break;
+					// Don't Save: delete workspace
+					case ConfirmResult.DONT_SAVE:
+						this.workspacesService.deleteUntitledWorkspaceSync(workspace);
+						c(false);
+						break;
 
-			// Don't Save: delete workspace
-			case ConfirmResult.DONT_SAVE:
-				this.workspacesService.deleteUntitledWorkspaceSync(workspace);
-				e.veto(false);
-				break;
+					// Save: save workspace, but do not veto unload
+					case ConfirmResult.SAVE: {
+						dialog.showSaveDialog(window, {
+							buttonLabel: mnemonicButtonLabel(localize({ key: 'save', comment: ['&& denotes a mnemonic'] }, "&&Save")),
+							title: localize('saveWorkspace', "Save Workspace"),
+							filters: WORKSPACE_FILTER,
+							defaultPath: this.getUntitledWorkspaceSaveDialogDefaultPath(workspace)
+						}, target => {
+							if (target) {
+								if (isMacintosh) {
+									target = normalizeNFC(target); // normalize paths returned from the OS
+								}
 
-			// Save: save workspace, but do not veto unload
-			case ConfirmResult.SAVE: {
-				let target = dialog.showSaveDialog(e.window.win, {
-					buttonLabel: mnemonicButtonLabel(localize({ key: 'save', comment: ['&& denotes a mnemonic'] }, "&&Save")),
-					title: localize('saveWorkspace', "Save Workspace"),
-					filters: WORKSPACE_FILTER,
-					defaultPath: this.getUntitledWorkspaceSaveDialogDefaultPath(workspace)
-				});
-
-				if (target) {
-					if (isMacintosh) {
-						target = normalizeNFC(target); // normalize paths returned from the OS
+								this.workspacesService.saveWorkspace(workspace, target).then(() => c(false), () => c(false));
+							} else {
+								c(true); // keep veto if no target was provided
+							}
+						});
 					}
-
-					e.veto(this.workspacesService.saveWorkspace(workspace, target).then(() => false, () => false));
-				} else {
-					e.veto(true); // keep veto if no target was provided
 				}
-			}
-		}
+			});
+		});
 	}
 
 	private getUntitledWorkspaceSaveDialogDefaultPath(workspace?: IWorkspaceIdentifier | ISingleFolderWorkspaceIdentifier): string {

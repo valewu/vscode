@@ -94,7 +94,7 @@ export abstract class TextFileService implements ITextFileService {
 
 	abstract resolveTextContent(resource: URI, options?: IResolveContentOptions): TPromise<IRawTextContent>;
 
-	abstract promptForPath(defaultPath: string): string;
+	abstract promptForPath(defaultPath: string): TPromise<string>;
 
 	abstract confirmSave(resources?: URI[]): TPromise<ConfirmResult>;
 
@@ -529,29 +529,37 @@ export abstract class TextFileService implements ITextFileService {
 	public saveAs(resource: URI, target?: URI): TPromise<URI> {
 
 		// Get to target resource
-		if (!target) {
+		let targetPromise: TPromise<URI>;
+		if (target) {
+			targetPromise = TPromise.wrap(target);
+		} else {
 			let dialogPath = resource.fsPath;
 			if (resource.scheme === UNTITLED_SCHEMA) {
 				dialogPath = this.suggestFileName(resource);
 			}
 
-			const pathRaw = this.promptForPath(dialogPath);
-			if (pathRaw) {
-				target = URI.file(pathRaw);
+			targetPromise = this.promptForPath(dialogPath).then(pathRaw => {
+				if (pathRaw) {
+					return URI.file(pathRaw);
+				}
+
+				return void 0;
+			});
+		}
+
+		return targetPromise.then(target => {
+			if (!target) {
+				return TPromise.as(null); // user canceled
 			}
-		}
 
-		if (!target) {
-			return TPromise.as(null); // user canceled
-		}
+			// Just save if target is same as models own resource
+			if (resource.toString() === target.toString()) {
+				return this.save(resource).then(() => resource);
+			}
 
-		// Just save if target is same as models own resource
-		if (resource.toString() === target.toString()) {
-			return this.save(resource).then(() => resource);
-		}
-
-		// Do it
-		return this.doSaveAs(resource, target);
+			// Do it
+			return this.doSaveAs(resource, target);
+		});
 	}
 
 	private doSaveAs(resource: URI, target?: URI): TPromise<URI> {

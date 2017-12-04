@@ -214,8 +214,8 @@ export class TestTextFileService extends TextFileService {
 		});
 	}
 
-	public promptForPath(defaultPath: string): string {
-		return this.promptPath;
+	public promptForPath(defaultPath: string): TPromise<string> {
+		return TPromise.wrap(this.promptPath);
 	}
 
 	public confirmSave(resources?: URI[]): TPromise<ConfirmResult> {
@@ -961,12 +961,12 @@ export class TestWindowService implements IWindowService {
 		return TPromise.as(void 0);
 	}
 
-	showSaveDialog(options: Electron.SaveDialogOptions, callback?: (fileName: string) => void): string {
-		return void 0;
+	showSaveDialog(options: Electron.SaveDialogOptions, callback?: (fileName: string) => void): TPromise<string> {
+		return TPromise.as(void 0);
 	}
 
-	showOpenDialog(options: Electron.OpenDialogOptions, callback?: (fileNames: string[]) => void): string[] {
-		return void 0;
+	showOpenDialog(options: Electron.OpenDialogOptions, callback?: (fileNames: string[]) => void): TPromise<string[]> {
+		return TPromise.as(void 0);
 	}
 
 	updateTouchBar(items: ICommandAction[][]): Promise<void> {

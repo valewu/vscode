@@ -393,7 +393,7 @@ export class CodeApplication {
 						message: 'Failed to load windows-mutex!',
 						detail: e.toString(),
 						noLink: true
-					});
+					}, () => null);
 				}
 			}
 
@@ -409,7 +409,7 @@ export class CodeApplication {
 						message: 'Failed to load windows-foreground-love!',
 						detail: e.toString(),
 						noLink: true
-					});
+					}, () => null);
 				}
 			}
 		}

@@ -192,8 +192,8 @@ export interface IWindowService {
 	onWindowTitleDoubleClick(): TPromise<void>;
 	show(): TPromise<void>;
 	showMessageBox(options: MessageBoxOptions): TPromise<IMessageBoxResult>;
-	showSaveDialog(options: SaveDialogOptions, callback?: (fileName: string) => void): string;
-	showOpenDialog(options: OpenDialogOptions, callback?: (fileNames: string[]) => void): string[];
+	showSaveDialog(options: SaveDialogOptions): TPromise<string>;
+	showOpenDialog(options: OpenDialogOptions): TPromise<string[]>;
 }
 
 export type MenuBarVisibility = 'default' | 'visible' | 'toggle' | 'hidden';

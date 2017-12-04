@@ -207,7 +207,7 @@ function showStartupWarningDialog(message: string, detail: string): void {
 		message,
 		detail,
 		noLink: true
-	});
+	}, () => null);
 }
 
 function quit(accessor: ServicesAccessor, reason?: ExpectedError | Error): void {

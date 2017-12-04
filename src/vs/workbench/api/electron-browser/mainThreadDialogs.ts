@@ -30,12 +30,9 @@ export class MainThreadDialogs implements MainThreadDiaglogsShape {
 		if (options.defaultUri && options.defaultUri.scheme !== 'file') {
 			return TPromise.wrapError(new Error('Not supported - Open-dialogs can only be opened on `file`-uris.'));
 		}
-		return new TPromise<string[]>(resolve => {
-			this._windowService.showOpenDialog(
-				MainThreadDialogs._convertOpenOptions(options),
-				filenames => resolve(isFalsyOrEmpty(filenames) ? undefined : filenames)
-			);
-		});
+		return this._windowService.showOpenDialog(
+			MainThreadDialogs._convertOpenOptions(options)
+		).then(filenames => isFalsyOrEmpty(filenames) ? undefined : filenames);
 	}
 
 	$showSaveDialog(options: MainThreadDialogSaveOptions): TPromise<string> {
@@ -43,12 +40,9 @@ export class MainThreadDialogs implements MainThreadDiaglogsShape {
 		if (options.defaultUri && options.defaultUri.scheme !== 'file') {
 			return TPromise.wrapError(new Error('Not supported - Save-dialogs can only be opened on `file`-uris.'));
 		}
-		return new TPromise<string>(resolve => {
-			this._windowService.showSaveDialog(
-				MainThreadDialogs._convertSaveOptions(options),
-				filename => resolve(!filename ? undefined : filename)
-			);
-		});
+		return this._windowService.showSaveDialog(
+			MainThreadDialogs._convertSaveOptions(options)
+		).then(filename => !filename ? undefined : filename);
 	}
 
 	private static _convertOpenOptions(options: MainThreadDialogOpenOptions): Electron.OpenDialogOptions {
