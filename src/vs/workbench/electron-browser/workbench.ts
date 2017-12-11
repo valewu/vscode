@@ -21,7 +21,7 @@ import errors = require('vs/base/common/errors');
 import { BackupFileService } from 'vs/workbench/services/backup/node/backupFileService';
 import { IBackupFileService } from 'vs/workbench/services/backup/common/backup';
 import { Registry } from 'vs/platform/registry/common/platform';
-import { isWindows, isLinux, isMacintosh } from 'vs/base/common/platform';
+import { isWindows, isLinux, isMacintosh, isRootUser } from 'vs/base/common/platform';
 import { Position as EditorPosition, IResourceDiffInput, IUntitledResourceInput, IEditor, IResourceInput } from 'vs/platform/editor/common/editor';
 import { IWorkbenchContributionsRegistry, Extensions as WorkbenchExtensions } from 'vs/workbench/common/contributions';
 import { IEditorInputFactoryRegistry, Extensions as EditorExtensions } from 'vs/workbench/common/editor';
@@ -582,10 +582,17 @@ export class Workbench implements IPartService {
 		serviceCollection.set(ITitleService, this.titlebarPart);
 		this.lifecycleService.when(LifecyclePhase.Eventually).then(() => {
 			return integrityService.isPure().then(res => {
-				return import('native-is-elevated').then(nativeIsElevated => {
+				let isAdminPromise: Promise<boolean>;
+				if (isWindows) {
+					isAdminPromise = import('native-is-elevated').then(isElevated => isElevated());
+				} else {
+					isAdminPromise = Promise.resolve(isRootUser);
+				}
+
+				return isAdminPromise.then(isAdmin => {
 					this.titlebarPart.updateProperties({
 						isPure: res.isPure,
-						isAdmin: nativeIsElevated()
+						isAdmin
 					});
 				});
 			});
