@@ -41,8 +41,6 @@ import { IModelService } from 'vs/editor/common/services/modelService';
 import { ModelServiceImpl } from 'vs/editor/common/services/modelServiceImpl';
 import { CodeEditorServiceImpl } from 'vs/editor/browser/services/codeEditorServiceImpl';
 import { ICodeEditorService } from 'vs/editor/browser/services/codeEditorService';
-import { IntegrityServiceImpl } from 'vs/platform/integrity/node/integrityServiceImpl';
-import { IIntegrityService } from 'vs/platform/integrity/common/integrity';
 import { EditorWorkerServiceImpl } from 'vs/editor/common/services/editorWorkerServiceImpl';
 import { IEditorWorkerService } from 'vs/editor/common/services/editorWorkerService';
 import { ExtensionService } from 'vs/workbench/services/extensions/electron-browser/extensionService';
@@ -392,8 +390,6 @@ export class WorkbenchShell {
 		serviceCollection.set(ISearchService, new SyncDescriptor(SearchService));
 
 		serviceCollection.set(ICodeEditorService, new SyncDescriptor(CodeEditorServiceImpl));
-
-		serviceCollection.set(IIntegrityService, new SyncDescriptor(IntegrityServiceImpl));
 
 		return [instantiationService, serviceCollection];
 	}

@@ -19,7 +19,6 @@ import { IContextMenuService } from 'vs/platform/contextview/browser/contextView
 import { StandardMouseEvent } from 'vs/base/browser/mouseEvent';
 import { IAction, Action } from 'vs/base/common/actions';
 import { IConfigurationService, IConfigurationChangeEvent } from 'vs/platform/configuration/common/configuration';
-import { IIntegrityService } from 'vs/platform/integrity/common/integrity';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IEditorGroupService } from 'vs/workbench/services/group/common/groupService';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
@@ -31,15 +30,21 @@ import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/
 import { Verbosity } from 'vs/platform/editor/common/editor';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { TITLE_BAR_ACTIVE_BACKGROUND, TITLE_BAR_ACTIVE_FOREGROUND, TITLE_BAR_INACTIVE_FOREGROUND, TITLE_BAR_INACTIVE_BACKGROUND, TITLE_BAR_BORDER } from 'vs/workbench/common/theme';
-import { isMacintosh } from 'vs/base/common/platform';
+import { isMacintosh, isWindows } from 'vs/base/common/platform';
 import URI from 'vs/base/common/uri';
 import { ILifecycleService, LifecyclePhase } from 'vs/platform/lifecycle/common/lifecycle';
+
+export interface ITitleProperties {
+	isPure: boolean;
+	isAdmin: boolean;
+}
 
 export class TitlebarPart extends Part implements ITitleService {
 
 	public _serviceBrand: any;
 
 	private static readonly NLS_UNSUPPORTED = nls.localize('patchedWindowTitle', "[Unsupported]");
+	private static NLS_USER_IS_ADMIN = nls.localize('userIsAdmin', "(Administrator)");
 	private static readonly NLS_EXTENSION_HOST = nls.localize('devExtensionWindowTitlePrefix', "[Extension Development Host]");
 	private static readonly TITLE_DIRTY = '\u25cf ';
 	private static readonly TITLE_SEPARATOR = isMacintosh ? ' — ' : ' - '; // macOS uses special - separator
@@ -52,7 +57,7 @@ export class TitlebarPart extends Part implements ITitleService {
 
 	private isInactive: boolean;
 
-	private isPure: boolean;
+	private properties: ITitleProperties;
 	private activeEditorListeners: IDisposable[];
 
 	constructor(
@@ -63,7 +68,6 @@ export class TitlebarPart extends Part implements ITitleService {
 		@IWindowsService private windowsService: IWindowsService,
 		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
 		@IEditorGroupService private editorGroupService: IEditorGroupService,
-		@IIntegrityService private integrityService: IIntegrityService,
 		@IEnvironmentService private environmentService: IEnvironmentService,
 		@IWorkspaceContextService private contextService: IWorkspaceContextService,
 		@IThemeService themeService: IThemeService,
@@ -71,7 +75,7 @@ export class TitlebarPart extends Part implements ITitleService {
 	) {
 		super(id, { hasTitle: false }, themeService);
 
-		this.isPure = true;
+		this.properties = { isPure: true, isAdmin: false };
 		this.activeEditorListeners = [];
 
 		this.init();
@@ -83,14 +87,6 @@ export class TitlebarPart extends Part implements ITitleService {
 
 		// Initial window title when loading is done
 		this.lifecycleService.when(LifecyclePhase.Running).then(() => this.setTitle(this.getWindowTitle()));
-
-		// Integrity for window title
-		this.integrityService.isPure().then(r => {
-			if (!r.isPure) {
-				this.isPure = false;
-				this.setTitle(this.getWindowTitle());
-			}
-		});
 	}
 
 	private registerListeners(): void {
@@ -149,7 +145,11 @@ export class TitlebarPart extends Part implements ITitleService {
 			title = this.environmentService.appNameLong;
 		}
 
-		if (!this.isPure) {
+		if (isWindows && this.properties.isAdmin) {
+			title = `${title} ${TitlebarPart.NLS_USER_IS_ADMIN}`;
+		}
+
+		if (!this.properties.isPure) {
 			title = `${title} ${TitlebarPart.NLS_UNSUPPORTED}`;
 		}
 
@@ -159,6 +159,13 @@ export class TitlebarPart extends Part implements ITitleService {
 		}
 
 		return title;
+	}
+
+	public updateProperties(properties: ITitleProperties): void {
+		if (properties.isAdmin !== this.properties.isAdmin || properties.isPure !== this.properties.isPure) {
+			this.properties = properties;
+			this.setTitle(this.getWindowTitle());
+		}
 	}
 
 	/**

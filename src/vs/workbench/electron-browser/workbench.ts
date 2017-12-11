@@ -40,6 +40,8 @@ import { getServices } from 'vs/platform/instantiation/common/extensions';
 import { Position, Parts, IPartService, ILayoutOptions, Dimension } from 'vs/workbench/services/part/common/partService';
 import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/common/workspace';
 import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
+import { IntegrityServiceImpl } from 'vs/platform/integrity/node/integrityServiceImpl';
+import { IIntegrityService } from 'vs/platform/integrity/common/integrity';
 import { ContextMenuService } from 'vs/workbench/services/contextview/electron-browser/contextmenuService';
 import { WorkbenchKeybindingService } from 'vs/workbench/services/keybinding/electron-browser/keybindingService';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
@@ -512,6 +514,10 @@ export class Workbench implements IPartService {
 		// Services we contribute
 		serviceCollection.set(IPartService, this);
 
+		// Integrity
+		const integrityService = this.instantiationService.createInstance(IntegrityServiceImpl);
+		serviceCollection.set(IIntegrityService, integrityService);
+
 		// Clipboard
 		serviceCollection.set(IClipboardService, new ClipboardService());
 
@@ -574,6 +580,16 @@ export class Workbench implements IPartService {
 		this.titlebarPart = this.instantiationService.createInstance(TitlebarPart, Identifiers.TITLEBAR_PART);
 		this.toUnbind.push({ dispose: () => this.titlebarPart.shutdown() });
 		serviceCollection.set(ITitleService, this.titlebarPart);
+		this.lifecycleService.when(LifecyclePhase.Eventually).then(() => {
+			return integrityService.isPure().then(res => {
+				return import('native-is-elevated').then(nativeIsElevated => {
+					this.titlebarPart.updateProperties({
+						isPure: res.isPure,
+						isAdmin: nativeIsElevated()
+					});
+				});
+			});
+		});
 
 		// History
 		serviceCollection.set(IHistoryService, new SyncDescriptor(HistoryService));
