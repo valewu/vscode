@@ -11,7 +11,7 @@ import { toErrorMessage } from 'vs/base/common/errorMessage';
 import paths = require('vs/base/common/paths');
 import { Action } from 'vs/base/common/actions';
 import URI from 'vs/base/common/uri';
-import { SaveFileAsAction, RevertFileAction, SaveFileAction } from 'vs/workbench/parts/files/electron-browser/fileActions';
+import { SaveFileAsAction, RevertFileAction, SaveFileAction, SaveFileElevated } from 'vs/workbench/parts/files/electron-browser/fileActions';
 import { FileOperationError, FileOperationResult } from 'vs/platform/files/common/files';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
@@ -118,7 +118,19 @@ export class SaveErrorHandler implements ISaveErrorHandler, IWorkbenchContributi
 		// Any other save error
 		else {
 			const isReadonly = (<FileOperationError>error).fileOperationResult === FileOperationResult.FILE_READ_ONLY;
+			const isPermissionDenied = (<FileOperationError>error).fileOperationResult === FileOperationResult.FILE_PERMISSION_DENIED;
 			const actions: Action[] = [];
+
+			// Save Elevated
+			if (isPermissionDenied) {
+				actions.push(new Action('workbench.files.action.saveElevated', SaveFileElevated.LABEL, null, true, () => {
+					const saveElevatedAction = this.instantiationService.createInstance(SaveFileElevated, SaveFileElevated.ID, SaveFileElevated.LABEL);
+					saveElevatedAction.setResource(resource);
+					saveElevatedAction.run().done(() => saveElevatedAction.dispose(), errors.onUnexpectedError);
+
+					return TPromise.as(true);
+				}));
+			}
 
 			// Save As
 			actions.push(new Action('workbench.files.action.saveAs', SaveFileAsAction.LABEL, null, true, () => {
@@ -147,7 +159,7 @@ export class SaveErrorHandler implements ISaveErrorHandler, IWorkbenchContributi
 
 					return TPromise.as(true);
 				}));
-			} else {
+			} else if (!isPermissionDenied) {
 				actions.push(new Action('workbench.files.action.retry', nls.localize('retry', "Retry"), null, true, () => {
 					const saveFileAction = this.instantiationService.createInstance(SaveFileAction, SaveFileAction.ID, SaveFileAction.LABEL);
 					saveFileAction.setResource(resource);

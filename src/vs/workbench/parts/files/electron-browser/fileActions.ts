@@ -1359,6 +1359,8 @@ export abstract class BaseSaveOneFileAction extends BaseSaveFileAction {
 
 	public abstract isSaveAs(): boolean;
 
+	public abstract writeElevated(): boolean;
+
 	public setResource(resource: URI): void {
 		this.resource = resource;
 	}
@@ -1396,7 +1398,7 @@ export abstract class BaseSaveOneFileAction extends BaseSaveFileAction {
 				// Special case: an untitled file with associated path gets saved directly unless "saveAs" is true
 				let savePromise: TPromise<URI>;
 				if (!this.isSaveAs() && source.scheme === 'untitled' && this.untitledEditorService.hasAssociatedFilePath(source)) {
-					savePromise = this.textFileService.save(source).then((result) => {
+					savePromise = this.textFileService.save(source, { writeElevated: this.writeElevated() }).then((result) => {
 						if (result) {
 							return URI.file(source.fsPath);
 						}
@@ -1407,7 +1409,7 @@ export abstract class BaseSaveOneFileAction extends BaseSaveFileAction {
 
 				// Otherwise, really "Save As..."
 				else {
-					savePromise = this.textFileService.saveAs(source);
+					savePromise = this.textFileService.saveAs(source, null, { writeElevated: this.writeElevated() });
 				}
 
 				return savePromise.then((target) => {
@@ -1440,7 +1442,10 @@ export abstract class BaseSaveOneFileAction extends BaseSaveFileAction {
 			}
 
 			// Just save
-			return this.textFileService.save(source, { force: true /* force a change to the file to trigger external watchers if any */ });
+			return this.textFileService.save(source, {
+				writeElevated: this.writeElevated(),
+				force: true /* force a change to the file to trigger external watchers if any */
+			});
 		}
 
 		return TPromise.as(false);
@@ -1455,6 +1460,10 @@ export class SaveFileAction extends BaseSaveOneFileAction {
 	public isSaveAs(): boolean {
 		return false;
 	}
+
+	public writeElevated(): boolean {
+		return false;
+	}
 }
 
 export class SaveFileAsAction extends BaseSaveOneFileAction {
@@ -1464,6 +1473,24 @@ export class SaveFileAsAction extends BaseSaveOneFileAction {
 
 	public isSaveAs(): boolean {
 		return true;
+	}
+
+	public writeElevated(): boolean {
+		return false;
+	}
+}
+
+export class SaveFileElevated extends BaseSaveOneFileAction {
+
+	public static readonly ID = 'workbench.action.files.saveElevated';
+	public static readonly LABEL = nls.localize('saveElevatedWindows', "Retry as Admin...");
+
+	public writeElevated(): boolean {
+		return true;
+	}
+
+	public isSaveAs(): boolean {
+		return false;
 	}
 }
 
